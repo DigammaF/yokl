@@ -40,6 +40,7 @@
 				$name = $db->querySingle("SELECT name FROM ennemy WHERE id == " . $encounter["ennemy_id"]);
 				echo "<p>" . $name . " vous attaque !</p>";
 				$combat_id = get_new_combat_id($db);
+				create_combat($db, $combat_id);
 				create_fighter($db, $player->id, $combat_id);
 				instantiate_ennemy($db, $encounter["ennemy_id"], $encounter["level"], $combat_id);
 				$combat = new Combat($db, $player->id);

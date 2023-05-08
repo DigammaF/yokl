@@ -523,8 +523,9 @@
 		run_combat_script($id, new CombatItemScriptContext($db, $fighter, $item));
 	}
 
-	function combat_flee(SQLite3 $db, Fighter $fighter) {
-
+	function combat_flee(SQLite3 $db, Combat $combat, Fighter $fighter, Fighter $opponent) {
+		
+		$combat->cancel($fighter->name . " s'enfuit !");
 	}
 
 	function param_link(string $page, array $values, string $text) {
@@ -580,12 +581,17 @@
 		table_end();
 	}
 
+	function create_combat(SQLite3 $db, int $id) {
+		$db->exec("INSERT INTO combat_data VALUES(" . $id . ",\"\")");
+	}
+
 	class Combat {
 		public Fighter $a;
 		public Fighter $b;
 		public int $id;
 		public bool $valid;
 		public string $cancel;
+		public array $data;
 
 		function __construct(SQLite3 $db, int $pawn_id) {
 			$this->id = $db->querySingle("SELECT id FROM combat WHERE pawn_id == " . $pawn_id);
@@ -593,22 +599,20 @@
 				$this->valid = false;
 			} else {
 				$this->valid = true;
+				$this->data = $db->querySingle("SELECT cancel FROM combat_data WHERE id == " . $this->id, true);
 				$querry = $db->query("SELECT pawn_id FROM combat WHERE id == " . $this->id);
 				$fighters = array();
 				while ($fighter = $querry->fetchArray()) {
 					array_push($fighters, $fighter["pawn_id"]);
 				}
-				function fighters_cmp($a, $b) {
-					return $a->id - $b->id;
-				}
-				usort($fighters, "fighters_cmp");
+				sort($fighters);
 				$this->a = new Fighter($db, $fighters[0]);
 				$this->b = new Fighter($db, $fighters[1]);
 			}
 		}
 
 		function cancelled() {
-			return !is_null($this->cancel);
+			return strlen($this->data["cancel"]) > 0;
 		}
 
 		function pick_first_turn() {
@@ -629,12 +633,18 @@
 			}
 		}
 
+		function cancel(string $reason) {
+			$this->data["cancel"] = $reason;
+		}
+
 		function commit(SQLite3 $db) {
+			$db->exec("UPDATE combat_data SET cancel = " . escape($this->data["cancel"], '"', '"') . " WHERE id == " . $this->id);
 			$this->a->commit($db);
 			$this->b->commit($db);
 		}
 
 		function delete(SQLite3 $db) {
+			$db->exec("DELETE FROM combat_data WHERE id == " . $this->id);
 			$this->a->delete($db);
 			$this->b->delete($db);
 		}
@@ -684,8 +694,7 @@
 			}
 			$this->a->reflect($db);
 			$this->b->reflect($db);
-			$this->a->delete($db);
-			$this->b->delete($db);
+			$this->delete($db);
 		}
 
 		function award_victory(SQLite3 $db, int $winner_id) {

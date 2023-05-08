@@ -36,9 +36,9 @@
 		}
 
 		if ($combat->cancelled()) {
-			echo "<p>" . $combat->cancel . "</p>";
-			param_link("place.php", array(), "Ok");
+			echo "<p>" . $combat->data["cancel"] . "</p>";
 			$combat->end($db);
+			echo param_link("place.php", array(), "Ok");
 			die();
 		}
 
@@ -54,6 +54,7 @@
 				// evade (amount)
 				// attack
 				// use_item (item_id, interaction_id)
+				// flee
 
 			// give turn to other player (or have ai play)
 		
@@ -77,6 +78,9 @@
 				case "use_item":
 					combat_use_item($db, $player_fighter, get("item_id"), get("interaction_id"));
 					break;
+				case "flee":
+					combat_flee($db, $combat, $player_fighter, $other_fighter);
+					break;
 				default:
 					abort();
 					break;
@@ -89,6 +93,12 @@
 				echo "<a href='place.php'>Ok</a>";
 				die();
 			}
+		}
+		if ($combat->cancelled()) {
+			echo "<p>" . $combat->data["cancel"] . "</p>";
+			$combat->end($db);
+			echo param_link("place.php", array(), "Ok");
+			die();
 		}
 		if ($other_fighter->data["turn"] && $other_fighter->data["control"] == "ai") {
 			// ai plays --------------------------------
@@ -173,6 +183,11 @@
 			));
 			echo_row(array(
 				param_link("combat.php", array("mode" => "move", "type" => "attack"), "Attaquer"),
+				"",
+				""
+			));
+			echo_row(array(
+				param_link("combat.php", array("mode" => "move", "type" => "flee"), "Fuire"),
 				"",
 				""
 			));
